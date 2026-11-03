@@ -1,0 +1,11 @@
+{
+  "name": "qspider-a",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist/apps/player",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "r2_buckets": [{ "binding": "SAVES", "bucket_name": "qspider-saves" }]
+}
