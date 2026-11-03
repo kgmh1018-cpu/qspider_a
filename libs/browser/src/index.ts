@@ -1,5 +1,6 @@
 export * from './lib/window-manager';
-export * from './lib/web-storage';
+export { WebStorage } from './lib/web-storage';
+export { getStorage } from './lib/cloud-storage';
 export * from './lib/data-fetcher';
 export * from './lib/setup';
 export * from './lib/updater';
