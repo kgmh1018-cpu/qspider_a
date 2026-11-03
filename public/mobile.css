@@ -62,13 +62,17 @@ body:has(.qsp-overlay) .qq-tabbar {
 }
 
 @media (pointer: coarse) and (orientation: portrait) {
-  html[data-qtabs] qsp-player {
-    height: calc(100vh - 52px);
-    height: calc(100dvh - 52px);
+    html[data-qtabs] qsp-player {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 52px;
+    width: auto;
+    height: auto;
   }
   html[data-qtabs] qsp-cl {
-    max-height: calc(100vh - 52px);
-    max-height: calc(100dvh - 52px);
+    max-height: 100%;
   }
   html[data-qtabs] .qsp-touch-pause-button {
     display: none;
