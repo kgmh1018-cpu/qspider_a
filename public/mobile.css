@@ -74,6 +74,15 @@ body:has(.qsp-overlay) .qq-tabbar {
   html[data-qtabs] qsp-cl {
     max-height: 100%;
   }
+  html[data-qtabs] qsp-main .qsp-scroll-area > div {
+    display: block !important;
+    min-width: 0 !important;
+  }
+  html[data-qtabs] qsp-main-content img,
+  html[data-qtabs] qsp-main-content video {
+    max-width: 100%;
+    height: auto;
+  }
   html[data-qtabs] .qsp-touch-pause-button {
     display: none;
   }
