@@ -7,5 +7,6 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
-  "r2_buckets": [{ "binding": "SAVES", "bucket_name": "qspider-saves" }]
-}
+  "r2_buckets": [{ "binding": "SAVES", "bucket_name": "qspider-saves" }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" }
+
