@@ -60,4 +60,35 @@
   new MutationObserver(sync).observe(document.documentElement, { childList: true, subtree: true });
   if (query.addEventListener) query.addEventListener('change', sync);
   sync();
+
+  function pad(value) {
+    return String(value).length < 2 ? '0' + value : String(value);
+  }
+
+  function showBuild() {
+    fetch(location.origin + '/api/ping', { cache: 'no-store', redirect: 'manual' })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (data) {
+        if (!data || !data.version || !data.version.timestamp) return;
+        var time = new Date(data.version.timestamp);
+        var text =
+          '배포 ' +
+          pad(time.getMonth() + 1) +
+          '/' +
+          pad(time.getDate()) +
+          ' ' +
+          pad(time.getHours()) +
+          ':' +
+          pad(time.getMinutes()) +
+          ' · ' +
+          String(data.version.id).slice(0, 7);
+        root.style.setProperty('--qbuild', JSON.stringify(text));
+      })
+      .catch(function () {});
+  }
+
+  showBuild();
 })();
+
