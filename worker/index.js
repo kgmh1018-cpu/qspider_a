@@ -125,6 +125,7 @@ async function route(request, env, url) {
     const meta = env.CF_VERSION_METADATA;
     const version = meta ? { id: meta.id, timestamp: meta.timestamp } : null;
     return json({ ok: true, access: request.headers.has(ACCESS_HEADER), bucket, version });
+  }
 
 
   if (!request.headers.has(ACCESS_HEADER)) return json({ error: 'forbidden' }, 403);
