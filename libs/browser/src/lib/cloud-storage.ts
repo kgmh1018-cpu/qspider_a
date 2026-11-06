@@ -6,7 +6,6 @@ const LOCAL_FILES_PREFIX = '/qspider-files/';
 const GAMES_TIMEOUT_MS = 5000;
 const SAVE_LIST_TIMEOUT_MS = 8000;
 const TRANSFER_TIMEOUT_MS = 20000;
-const SAVE_WAIT_MS = 3000;
 const META_RETRY_MS = 60000;
 
 interface CloudSave {
@@ -53,17 +52,6 @@ async function call(path: string, init: RequestInit = {}, timeoutMs = SAVE_LIST_
   }
 }
 
-async function waitAtMost(work: Promise<unknown>, ms: number): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  await Promise.race([
-    work.catch(() => undefined),
-    new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, ms);
-    }),
-  ]);
-  clearTimeout(timer);
-}
-
 function isSyncable(entry: GameShelfEntry): boolean {
   return !entry.loadConfig.url.startsWith(LOCAL_FILES_PREFIX);
 }
@@ -72,6 +60,7 @@ export class CloudStorage implements Storage {
   private local: Storage = new WebStorage();
   private db = new QspiderDatabase();
   private metas = new Map<string, MetaEntry>();
+  private pushing = new Map<string, boolean>();
 
   prepareLoadConfig(game_id: string, entrypoint: string): Promise<GameShelfEntry['loadConfig']> {
     return this.local.prepareLoadConfig(game_id, entrypoint);
@@ -128,23 +117,20 @@ export class CloudStorage implements Storage {
 
   async addGame(id: string, data: GameShelfEntry): Promise<void> {
     await this.local.addGame(id, data);
-    if (isSyncable(data)) await waitAtMost(this.putGame(id, data), SAVE_WAIT_MS);
+    if (isSyncable(data)) void this.putGame(id, data);
   }
 
   async updateGame(id: string, data: Partial<GameShelfEntry>): Promise<void> {
     await this.local.updateGame(id, data);
     const entry = (await this.local.getGames())[id];
-    if (entry && isSyncable(entry)) await waitAtMost(this.putGame(id, entry), SAVE_WAIT_MS);
+    if (entry && isSyncable(entry)) void this.putGame(id, entry);
   }
 
   async removeGame(id: string): Promise<void> {
     const entry = (await this.local.getGames())[id];
     await this.local.removeGame(id);
     if (!entry || isSyncable(entry)) {
-      await waitAtMost(
-        call(`/api/games/${encodeURIComponent(id)}`, { method: 'DELETE' }, GAMES_TIMEOUT_MS),
-        SAVE_WAIT_MS,
-      );
+      void call(`/api/games/${encodeURIComponent(id)}`, { method: 'DELETE' }, GAMES_TIMEOUT_MS);
     }
   }
 
@@ -195,6 +181,27 @@ export class CloudStorage implements Storage {
     meta?.set(nameOf(slot, key), { slot, key, timestamp: record.timestamp, size: record.data.byteLength });
   }
 
+  private schedulePush(gameId: string, key: string, slot: number): void {
+    const id = `${gameId}\u0000${nameOf(slot, key)}`;
+    if (this.pushing.has(id)) {
+      this.pushing.set(id, true);
+      return;
+    }
+    this.pushing.set(id, false);
+    void this.runPush(id, gameId, key, slot);
+  }
+
+  private async runPush(id: string, gameId: string, key: string, slot: number): Promise<void> {
+    try {
+      await this.push(gameId, key, slot);
+    } catch {
+      // a failed upload is retried by the next save of the same target
+    }
+    const again = this.pushing.get(id);
+    this.pushing.delete(id);
+    if (again) this.schedulePush(gameId, key, slot);
+  }
+
   private async pull(gameId: string, save: CloudSave): Promise<ArrayBuffer | null> {
     const response = await call(
       `/api/save/${encodeURIComponent(gameId)}?${targetQuery(save.slot, save.key)}`,
@@ -230,12 +237,12 @@ export class CloudStorage implements Storage {
 
   async saveByKey(game_id: string, key: string, data: ArrayBuffer): Promise<void> {
     await this.local.saveByKey(game_id, key, data);
-    await waitAtMost(this.push(game_id, key, -1), SAVE_WAIT_MS);
+    this.schedulePush(game_id, key, -1);
   }
 
   async saveBySlot(game_id: string, slot: number, data: ArrayBuffer): Promise<void> {
     await this.local.saveBySlot(game_id, slot, data);
-    await waitAtMost(this.push(game_id, '', slot), SAVE_WAIT_MS);
+    this.schedulePush(game_id, '', slot);
   }
 
   async hasSaveByKey(game_id: string, key: string): Promise<boolean> {
@@ -288,20 +295,14 @@ export class CloudStorage implements Storage {
 
   async clearSaveSlot(game_id: string, slot: number): Promise<void> {
     await this.local.clearSaveSlot(game_id, slot);
-    await waitAtMost(
-      call(`/api/save/${encodeURIComponent(game_id)}?${targetQuery(slot, '')}`, { method: 'DELETE' }),
-      SAVE_WAIT_MS,
-    );
     (await this.cachedMeta(game_id))?.delete(nameOf(slot, ''));
+    void call(`/api/save/${encodeURIComponent(game_id)}?${targetQuery(slot, '')}`, { method: 'DELETE' });
   }
 
   async clearSaveKey(game_id: string, key: string): Promise<void> {
     await this.local.clearSaveKey(game_id, key);
-    await waitAtMost(
-      call(`/api/save/${encodeURIComponent(game_id)}?${targetQuery(-1, key)}`, { method: 'DELETE' }),
-      SAVE_WAIT_MS,
-    );
     (await this.cachedMeta(game_id))?.delete(nameOf(-1, key));
+    void call(`/api/save/${encodeURIComponent(game_id)}?${targetQuery(-1, key)}`, { method: 'DELETE' });
   }
 }
 
