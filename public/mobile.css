@@ -3,6 +3,10 @@
   body {
     overscroll-behavior: none;
   }
+  html {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
   html qsp-player {
     height: 100dvh;
   }
@@ -45,10 +49,11 @@
 .qq-tabbar {
   position: fixed;
   left: 0;
-
   right: 0;
   bottom: 0;
-  height: 52px;
+  box-sizing: border-box;
+  height: calc(52px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   display: flex;
   z-index: 1;
   background: #1c1c1e;
@@ -72,12 +77,12 @@ body:has(.qsp-overlay) .qq-tabbar {
 }
 
 @media (pointer: coarse) and (orientation: portrait) {
-    html[data-qtabs] qsp-player {
+  html[data-qtabs] qsp-player {
     position: fixed;
-    top: 0;
+    top: env(safe-area-inset-top, 0px);
     left: 0;
     right: 0;
-    bottom: 52px;
+    bottom: calc(52px + env(safe-area-inset-bottom, 0px));
     width: auto;
     height: auto;
   }
@@ -146,4 +151,31 @@ body:has(.qsp-overlay) .qq-tabbar {
   html[data-qtabs][data-qtab='inv'] qsp-cl > qsp-cl-layer > qsp-cl-dock[data-place='bottom'] {
     display: none;
   }
+}
+
+.qq-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+}
+.qq-viewer-media {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.qq-viewer-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: 8px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 22px;
+  background: rgba(60, 60, 62, 0.85);
+  color: #ffffff;
+  font-size: 20px;
 }
