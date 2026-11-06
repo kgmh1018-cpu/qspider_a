@@ -124,7 +124,7 @@ body:has(.qsp-overlay) .qq-tabbar {
     display: none;
   }
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom'] {
-    height: 36dvh;
+    height: 28dvh;
   }
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom'] > qsp-cl-pane:has(qsp-stats),
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom']:not(:has(qsp-actions)) {
