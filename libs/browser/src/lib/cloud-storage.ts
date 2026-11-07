@@ -1,4 +1,4 @@
-import { GameShelfEntry, SaveData, Storage } from '@qspider/contracts';
+import { GameShelfEntry, isLocalOnlyKey, SaveData, Storage } from '@qspider/contracts';
 import { QspiderDatabase } from './db';
 import { WebStorage } from './web-storage';
 
@@ -224,7 +224,14 @@ export class CloudStorage implements Storage {
 
   private mergeSaves(gameId: string, local: SaveData[], cloud: CloudSave[]): SaveData[] {
     const merged = new Map<string, SaveData>();
-    for (const save of local) merged.set(nameOf(save.slot, save.key), save);
+    for (const save of local) {
+      merged.set(nameOf(save.slot, save.key), {
+        game_id: save.game_id,
+        key: save.key,
+        slot: save.slot,
+        timestamp: save.timestamp,
+      });
+    }
     for (const save of cloud) {
       const name = nameOf(save.slot, save.key);
       const current = merged.get(name);
@@ -237,7 +244,7 @@ export class CloudStorage implements Storage {
 
   async saveByKey(game_id: string, key: string, data: ArrayBuffer): Promise<void> {
     await this.local.saveByKey(game_id, key, data);
-    this.schedulePush(game_id, key, -1);
+    if (!isLocalOnlyKey(key)) this.schedulePush(game_id, key, -1);
   }
 
   async saveBySlot(game_id: string, slot: number, data: ArrayBuffer): Promise<void> {
@@ -247,6 +254,7 @@ export class CloudStorage implements Storage {
 
   async hasSaveByKey(game_id: string, key: string): Promise<boolean> {
     if (await this.local.hasSaveByKey(game_id, key)) return true;
+    if (isLocalOnlyKey(key)) return false;
     return (await this.meta(game_id)).has(nameOf(-1, key));
   }
 
@@ -256,6 +264,7 @@ export class CloudStorage implements Storage {
   }
 
   async getSaveDataByKey(game_id: string, key: string): Promise<ArrayBuffer | null> {
+    if (isLocalOnlyKey(key)) return (await this.localRecord(game_id, key, -1))?.data || null;
     const cloud = (await this.meta(game_id)).get(nameOf(-1, key));
     const local = await this.localRecord(game_id, key, -1);
     if (cloud && (!local || cloud.timestamp > local.timestamp)) {
@@ -301,6 +310,7 @@ export class CloudStorage implements Storage {
 
   async clearSaveKey(game_id: string, key: string): Promise<void> {
     await this.local.clearSaveKey(game_id, key);
+    if (isLocalOnlyKey(key)) return;
     (await this.cachedMeta(game_id))?.delete(nameOf(-1, key));
     void call(`/api/save/${encodeURIComponent(game_id)}?${targetQuery(-1, key)}`, { method: 'DELETE' });
   }

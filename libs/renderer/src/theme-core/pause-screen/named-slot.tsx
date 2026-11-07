@@ -5,7 +5,7 @@ import { Attributes, namedSlots$ } from '@qspider/game-state';
 import { atom } from 'xoid';
 import { slotContentContext } from './slots';
 
-const namedSlotContentContext = createContext<{ path: string }>({ path: '' });
+export const namedSlotContentContext = createContext<{ path: string }>({ path: '' });
 
 export const QspNamedSlot: React.FC<{ path: string; attrs: Attributes; children: ReactNode }> = (props) => {
   const { attrs, children, path } = props;

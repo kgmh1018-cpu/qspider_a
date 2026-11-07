@@ -126,18 +126,26 @@
   fixVideos();
 
   var PREF_KEY = 'qq-prefs';
+  var RECOVERY_KEY = 'qq-recovery-every';
   var DOCK_OPTIONS = [20, 25, 30, 35, 40];
   var DOCK_DEFAULT = 30;
-  var prefs = { dock: DOCK_DEFAULT, ts: 0, dirty: false };
+  var RECOVERY_OPTIONS = [0, 5, 10, 20];
+  var RECOVERY_DEFAULT = 10;
+  var prefs = { dock: DOCK_DEFAULT, recovery: RECOVERY_DEFAULT, ts: 0, dirty: false };
   var pushTimer = null;
 
   function validDock(value) {
     return DOCK_OPTIONS.indexOf(value) >= 0;
   }
 
+  function validRecovery(value) {
+    return RECOVERY_OPTIONS.indexOf(value) >= 0;
+  }
+
   function saveLocalPrefs() {
     try {
       localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+      localStorage.setItem(RECOVERY_KEY, String(prefs.recovery));
     } catch (error) {}
   }
 
@@ -147,6 +155,7 @@
       if (stored && typeof stored === 'object') {
         prefs = {
           dock: validDock(stored.dock) ? stored.dock : DOCK_DEFAULT,
+          recovery: validRecovery(stored.recovery) ? stored.recovery : RECOVERY_DEFAULT,
           ts: typeof stored.ts === 'number' ? stored.ts : 0,
           dirty: stored.dirty === true,
         };
@@ -156,8 +165,13 @@
 
   function applyPrefs() {
     root.style.setProperty('--qq-dock', prefs.dock + 'dvh');
+    try {
+      localStorage.setItem(RECOVERY_KEY, String(prefs.recovery));
+    } catch (error) {}
     Array.prototype.forEach.call(document.querySelectorAll('.qq-settings button'), function (button) {
-      button.setAttribute('aria-pressed', String(Number(button.getAttribute('data-dock')) === prefs.dock));
+      var field = button.getAttribute('data-field');
+      var value = Number(button.getAttribute('data-value'));
+      button.setAttribute('aria-pressed', String(prefs[field] === value));
     });
   }
 
@@ -166,20 +180,24 @@
     pushTimer = setTimeout(sendPrefs, 1000);
   }
 
+  function snapshot() {
+    return JSON.stringify({ dock: prefs.dock, recovery: prefs.recovery });
+  }
+
   function sendPrefs() {
     if (!prefs.dirty) return;
-    var sent = prefs.dock;
+    var sent = snapshot();
     fetch('/api/prefs', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dock: sent }),
+      body: sent,
       keepalive: true,
     })
       .then(function (response) {
         return response.ok ? response.json() : null;
       })
       .then(function (data) {
-        if (!data || typeof data.ts !== 'number' || prefs.dock !== sent) return;
+        if (!data || typeof data.ts !== 'number' || snapshot() !== sent) return;
         prefs.ts = data.ts;
         prefs.dirty = false;
         saveLocalPrefs();
@@ -199,47 +217,69 @@
       .then(function (data) {
         if (!data || typeof data.ts !== 'number' || data.ts <= prefs.ts || prefs.dirty) return;
         if (!validDock(data.dock)) return;
-        prefs = { dock: data.dock, ts: data.ts, dirty: false };
+        prefs = {
+          dock: data.dock,
+          recovery: validRecovery(data.recovery) ? data.recovery : prefs.recovery,
+          ts: data.ts,
+          dirty: false,
+        };
         saveLocalPrefs();
         applyPrefs();
       })
       .catch(function () {});
   }
 
-  function setDock(value) {
-    prefs.dock = value;
+  function setPref(field, value) {
+    prefs[field] = value;
     prefs.dirty = true;
     saveLocalPrefs();
     applyPrefs();
     pushPrefs();
   }
 
+  function buildGroup(label, field, options, format) {
+    var wrap = document.createElement('div');
+    var title = document.createElement('div');
+    title.textContent = label;
+    var row = document.createElement('div');
+    row.className = 'qq-settings-row';
+    options.forEach(function (value) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'qsp-button';
+      button.setAttribute('data-field', field);
+      button.setAttribute('data-value', String(value));
+      button.textContent = format(value);
+      button.addEventListener('click', function () {
+        setPref(field, value);
+      });
+      row.appendChild(button);
+    });
+    wrap.appendChild(title);
+    wrap.appendChild(row);
+    return wrap;
+  }
+
   function buildSettings() {
     var box = document.createElement('div');
     box.className = 'qq-settings';
     var title = document.createElement('h4');
-    title.textContent = '모바일 화면';
-    var label = document.createElement('div');
-    label.textContent = '선택지 영역 높이';
-    var row = document.createElement('div');
-    row.className = 'qq-settings-row';
-    DOCK_OPTIONS.forEach(function (value) {
-      var button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'qsp-button';
-      button.setAttribute('data-dock', String(value));
-      button.textContent = value + '%';
-      button.addEventListener('click', function () {
-        setDock(value);
-      });
-      row.appendChild(button);
-    });
+    title.textContent = '모바일 설정';
+    box.appendChild(title);
+    box.appendChild(
+      buildGroup('선택지 영역 높이 (세로 화면)', 'dock', DOCK_OPTIONS, function (value) {
+        return value + '%';
+      }),
+    );
+    box.appendChild(
+      buildGroup('자동 복구 저장 (장면 수마다)', 'recovery', RECOVERY_OPTIONS, function (value) {
+        return value === 0 ? '끔' : String(value);
+      }),
+    );
     var note = document.createElement('div');
     note.className = 'qq-settings-note';
-    note.textContent = '세로 화면에서 적용되며 로그인한 모든 기기에 동기화됩니다.';
-    box.appendChild(title);
-    box.appendChild(label);
-    box.appendChild(row);
+    note.textContent =
+      '로그인한 모든 기기에 동기화됩니다. 복구 저장은 이 기기에만 5칸을 돌려 쓰며, 불러오기 목록의 Recovery에 나옵니다.';
     box.appendChild(note);
     return box;
   }
@@ -260,6 +300,7 @@
   });
 
   loadLocalPrefs();
+  saveLocalPrefs();
   applyPrefs();
   pullPrefs();
 
@@ -320,4 +361,3 @@
     true,
   );
 })();
-

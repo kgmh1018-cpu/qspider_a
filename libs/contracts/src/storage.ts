@@ -1,5 +1,11 @@
 import { GameShelfEntry } from './game-shelf';
 
+export const LOCAL_ONLY_KEY_PREFIX = '__recovery_';
+
+export function isLocalOnlyKey(key: string): boolean {
+  return key.startsWith(LOCAL_ONLY_KEY_PREFIX);
+}
+
 export interface SaveData {
   game_id: string;
   timestamp: number;

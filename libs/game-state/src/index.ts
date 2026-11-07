@@ -13,6 +13,8 @@ export * from './input';
 export * from './wait';
 export * from './pause-screen';
 export * from './save';
+export * from './recovery-keys';
+export * from './recovery';
 export * from './hooks';
 export * from './player-theme';
 export * from './qsp-gui-cfg';

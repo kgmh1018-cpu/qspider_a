@@ -53,6 +53,7 @@ import { HtmlForm } from '../theme-core/html/form';
 import { HtmlImg } from '../theme-core/html/img';
 import { QspLayer, QspRegion, QspShow, QspStyle, QspVariable } from '../theme-core/qspider';
 import { QspNamedSlot } from '../theme-core/pause-screen/named-slot';
+import { QspNamedSavesList, QspSaveName } from '../theme-core/pause-screen/named-saves-list';
 import { QspVolumeSlider } from './general/volume-slider';
 import { QspMuteToggle } from './general/mute-toggle';
 import { QspGlobalHotkeys } from '../theme-core/pause-screen/GlobalHotkeys';
@@ -259,6 +260,17 @@ export const defaultTransformers: Record<string, TransformCallback> = {
         {children}
       </QspNamedSlot>
     );
+  },
+  'qsp-named-saves-list'(node, children) {
+    const { heading, ...attrs } = extractAttributes(node);
+    return (
+      <QspNamedSavesList attrs={attrs} heading={typeof heading === 'string' ? heading : undefined}>
+        {children}
+      </QspNamedSavesList>
+    );
+  },
+  'qsp-save-name'(node) {
+    return <QspSaveName attrs={extractAttributes(node)} />;
   },
   'qsp-quick-save'(node, children) {
     return (
