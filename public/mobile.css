@@ -124,7 +124,7 @@ body:has(.qsp-overlay) .qq-tabbar {
     display: none;
   }
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom'] {
-    height: 28dvh;
+    height: var(--qq-dock, 30dvh);
   }
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom'] > qsp-cl-pane:has(qsp-stats),
   html[data-qtabs][data-qtab='main'] qsp-cl-layer qsp-cl-layer > qsp-cl-dock[data-place='bottom']:not(:has(qsp-actions)) {
@@ -178,4 +178,22 @@ body:has(.qsp-overlay) .qq-tabbar {
   background: rgba(60, 60, 62, 0.85);
   color: #ffffff;
   font-size: 20px;
+}
+
+.qq-settings {
+  margin-top: 16px;
+}
+.qq-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.qq-settings-row button[aria-pressed='true'] {
+  font-weight: bold;
+  text-decoration: underline;
+}
+.qq-settings-note {
+  font-size: 85%;
+  opacity: 0.7;
 }

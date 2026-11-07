@@ -120,9 +120,148 @@
     requestAnimationFrame(function () {
       videoQueued = false;
       fixVideos();
+      injectSettings();
     });
   }).observe(document.documentElement, { childList: true, subtree: true });
   fixVideos();
+
+  var PREF_KEY = 'qq-prefs';
+  var DOCK_OPTIONS = [20, 25, 30, 35, 40];
+  var DOCK_DEFAULT = 30;
+  var prefs = { dock: DOCK_DEFAULT, ts: 0, dirty: false };
+  var pushTimer = null;
+
+  function validDock(value) {
+    return DOCK_OPTIONS.indexOf(value) >= 0;
+  }
+
+  function saveLocalPrefs() {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+    } catch (error) {}
+  }
+
+  function loadLocalPrefs() {
+    try {
+      var stored = JSON.parse(localStorage.getItem(PREF_KEY) || 'null');
+      if (stored && typeof stored === 'object') {
+        prefs = {
+          dock: validDock(stored.dock) ? stored.dock : DOCK_DEFAULT,
+          ts: typeof stored.ts === 'number' ? stored.ts : 0,
+          dirty: stored.dirty === true,
+        };
+      }
+    } catch (error) {}
+  }
+
+  function applyPrefs() {
+    root.style.setProperty('--qq-dock', prefs.dock + 'dvh');
+    Array.prototype.forEach.call(document.querySelectorAll('.qq-settings button'), function (button) {
+      button.setAttribute('aria-pressed', String(Number(button.getAttribute('data-dock')) === prefs.dock));
+    });
+  }
+
+  function pushPrefs() {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(sendPrefs, 1000);
+  }
+
+  function sendPrefs() {
+    if (!prefs.dirty) return;
+    var sent = prefs.dock;
+    fetch('/api/prefs', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dock: sent }),
+      keepalive: true,
+    })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (data) {
+        if (!data || typeof data.ts !== 'number' || prefs.dock !== sent) return;
+        prefs.ts = data.ts;
+        prefs.dirty = false;
+        saveLocalPrefs();
+      })
+      .catch(function () {});
+  }
+
+  function pullPrefs() {
+    if (prefs.dirty) {
+      pushPrefs();
+      return;
+    }
+    fetch('/api/prefs', { cache: 'no-store' })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (data) {
+        if (!data || typeof data.ts !== 'number' || data.ts <= prefs.ts || prefs.dirty) return;
+        if (!validDock(data.dock)) return;
+        prefs = { dock: data.dock, ts: data.ts, dirty: false };
+        saveLocalPrefs();
+        applyPrefs();
+      })
+      .catch(function () {});
+  }
+
+  function setDock(value) {
+    prefs.dock = value;
+    prefs.dirty = true;
+    saveLocalPrefs();
+    applyPrefs();
+    pushPrefs();
+  }
+
+  function buildSettings() {
+    var box = document.createElement('div');
+    box.className = 'qq-settings';
+    var title = document.createElement('h4');
+    title.textContent = '모바일 화면';
+    var label = document.createElement('div');
+    label.textContent = '선택지 영역 높이';
+    var row = document.createElement('div');
+    row.className = 'qq-settings-row';
+    DOCK_OPTIONS.forEach(function (value) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'qsp-button';
+      button.setAttribute('data-dock', String(value));
+      button.textContent = value + '%';
+      button.addEventListener('click', function () {
+        setDock(value);
+      });
+      row.appendChild(button);
+    });
+    var note = document.createElement('div');
+    note.className = 'qq-settings-note';
+    note.textContent = '세로 화면에서 적용되며 로그인한 모든 기기에 동기화됩니다.';
+    box.appendChild(title);
+    box.appendChild(label);
+    box.appendChild(row);
+    box.appendChild(note);
+    return box;
+  }
+
+  function injectSettings() {
+    var slider = document.querySelector('.qsp-volume-root');
+    var panel = slider && slider.closest('qsp-pause-screen-panel');
+    if (!panel || panel.querySelector('.qq-settings')) return;
+    panel.appendChild(buildSettings());
+    applyPrefs();
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden' && prefs.dirty) {
+      clearTimeout(pushTimer);
+      sendPrefs();
+    }
+  });
+
+  loadLocalPrefs();
+  applyPrefs();
+  pullPrefs();
 
   var viewer = null;
 
