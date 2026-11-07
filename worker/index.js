@@ -111,6 +111,35 @@ async function handleGame(request, env, gameId) {
   return json({ error: 'method not allowed' }, 405);
 }
 
+const PREFS_KEY = 'prefs.json';
+const MAX_PREFS_BYTES = 64 * 1024;
+
+async function handlePrefs(request, env) {
+  if (request.method === 'GET') {
+    const object = await env.SAVES.get(PREFS_KEY);
+    return json(object ? await object.json() : {});
+  }
+
+  if (request.method === 'PUT') {
+    const text = await request.text();
+    if (text.length > MAX_PREFS_BYTES) return json({ error: 'too large' }, 413);
+    let incoming;
+    try {
+      incoming = JSON.parse(text);
+    } catch {
+      return json({ error: 'bad json' }, 400);
+    }
+    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return json({ error: 'bad prefs' }, 400);
+    const ts = Date.now();
+    await env.SAVES.put(PREFS_KEY, JSON.stringify({ ...incoming, ts }), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    return json({ ok: true, ts });
+  }
+
+  return json({ error: 'method not allowed' }, 405);
+}
+
 async function route(request, env, url) {
   const path = url.pathname;
 
@@ -129,6 +158,8 @@ async function route(request, env, url) {
 
 
   if (!request.headers.has(ACCESS_HEADER)) return json({ error: 'forbidden' }, 403);
+
+  if (path === '/api/prefs') return handlePrefs(request, env);
 
   if (path === '/api/games' && request.method === 'GET') return json(await readGames(env));
 
