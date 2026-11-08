@@ -40,11 +40,13 @@ export async function init(): Promise<void> {
   const urlParams = new URLSearchParams(queryString);
   const configUrl = urlParams.get('config');
   const gameUrl = urlParams.get('game');
+  const forcedId = urlParams.get('id');
   const toImport = gameUrl || configUrl;
   let toRun: string | null = null;
   if (toImport) {
     try {
-      const imported = await importUrl(toImport);
+      const found = await importUrl(toImport);
+      const imported = forcedId && found.length === 1 ? [{ ...found[0], id: forcedId }] : found;
       for (const entry of imported) {
         // A URL import overwrites the shelf entry of the same id on every load (e2e defect 52 depends on it).
         games$.actions.add(entry.id, entry);
