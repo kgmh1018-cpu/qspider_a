@@ -1,12 +1,14 @@
 (function () {
   var box = null;
   var lines = [];
+  var dismissed = {};
   var originalError = console.error;
   console.error = function () {
     try {
       var first = arguments[0];
       if (typeof first === 'string' && /\.(mp3|ogg|wav|m4a)(\?|#|$)/i.test(first)) {
         var line = first + ' : ' + String(arguments[1]);
+        if (dismissed[line]) return originalError.apply(console, arguments);
         if (lines.indexOf(line) === -1) lines.push(line);
         if (lines.length > 8) lines.shift();
         if (!box) {
@@ -14,6 +16,9 @@
           box.style.cssText =
             'position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);z-index:2147483647;max-height:30vh;overflow:auto;background:rgba(120,0,0,.92);color:#fff;font:11px/1.4 monospace;padding:4px 6px;white-space:pre-wrap;word-break:break-all';
           box.addEventListener('click', function () {
+            lines.forEach(function (l) {
+              dismissed[l] = true;
+            });
             lines = [];
             box.remove();
             box = null;
