@@ -1,4 +1,32 @@
 (function () {
+  var box = null;
+  var lines = [];
+  var originalError = console.error;
+  console.error = function () {
+    try {
+      var first = arguments[0];
+      if (typeof first === 'string' && /\.(mp3|ogg|wav|m4a)(\?|#|$)/i.test(first)) {
+        var line = first + ' : ' + String(arguments[1]);
+        if (lines.indexOf(line) === -1) lines.push(line);
+        if (lines.length > 8) lines.shift();
+        if (!box) {
+          box = document.createElement('div');
+          box.style.cssText =
+            'position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);z-index:2147483647;max-height:30vh;overflow:auto;background:rgba(120,0,0,.92);color:#fff;font:11px/1.4 monospace;padding:4px 6px;white-space:pre-wrap;word-break:break-all';
+          box.addEventListener('click', function () {
+            lines = [];
+            box.remove();
+            box = null;
+          });
+          (document.body || document.documentElement).appendChild(box);
+        }
+        box.textContent = lines.join('\n');
+      }
+    } catch (e) {}
+    return originalError.apply(console, arguments);
+  };
+})();
+(function () {
   var TABS = [
     ['main', '본문'],
     ['vars', '변수'],
